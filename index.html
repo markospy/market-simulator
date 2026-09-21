@@ -345,6 +345,9 @@
 (function () {
   "use strict";
 
+  var NUM_BINS = 8;
+  var DECAY = 0.965;
+
   // ---------- Estado ----------
   var state = {
     price: 100,
@@ -354,12 +357,12 @@
     currentCandle: null,
     ticksPerCandle: 20,
     maxCandles: 70,
-    bidDepth: new Float32Array(8),
-    askDepth: new Float32Array(8),
+    bidDepth: new Float32Array(NUM_BINS),
+    askDepth: new Float32Array(NUM_BINS),
+    pendingBuys: [],
+    pendingSells: [],
     running: true
   };
-  var NUM_BINS = 8;
-  var DECAY = 0.965;
 
   var els = {
     traders: document.getElementById('traders'),
@@ -392,19 +395,21 @@
       : 'Las órdenes se acumulan en el libro y forman muros de liquidez que frenan el movimiento del precio.';
     els.speedVal.textContent = els.speed.value;
   }
-  [els.traders, els.variation, els.makers, els.speed].forEach(function (el) {
-    el.addEventListener('input', syncLabels);
-  });
-  syncLabels();
 
-  // ---------- Simulación ----------
+  function currentLadderRange() {
+    return parseFloat(els.variation.value) / 100;
+  }
+
   function resetSim() {
     state.price = 100;
+    state.startPrice = 100;
     state.tick = 0;
     state.candles = [];
     state.currentCandle = null;
     state.bidDepth = new Float32Array(NUM_BINS);
     state.askDepth = new Float32Array(NUM_BINS);
+    state.pendingBuys = [];
+    state.pendingSells = [];
   }
 
   function offsetToBin(offsetAbs, ladderRange) {
@@ -417,72 +422,98 @@
 
   function step() {
     var traders = parseInt(els.traders.value, 10);
-    var pct = parseFloat(els.variation.value) / 100;
+    var pct = currentLadderRange();
     var makerFrac = parseInt(els.makers.value, 10) / 100;
-    var ladderRange = pct * 1.5;
+    var ladderRange = pct;
 
     var numMakers = Math.round(traders * makerFrac);
     var numTakers = traders - numMakers;
 
-    // Cancelación gradual de órdenes en espera
     for (var i = 0; i < NUM_BINS; i++) {
       state.bidDepth[i] *= DECAY;
       state.askDepth[i] *= DECAY;
     }
 
-    // Makers: dejan órdenes esperando en el libro
+    if (state.pendingBuys.length) {
+      state.pendingBuys = state.pendingBuys.map(function (price) {
+        return price * (1 - 0.01);
+      }).filter(function (price) {
+        return price > state.price * (1 - ladderRange);
+      });
+    }
+    if (state.pendingSells.length) {
+      state.pendingSells = state.pendingSells.map(function (price) {
+        return price * (1 + 0.01);
+      }).filter(function (price) {
+        return price < state.price * (1 + ladderRange);
+      });
+    }
+
     for (var m = 0; m < numMakers; m++) {
-      var v = Math.random() * pct;
+      var v = Math.random() * ladderRange;
       var bin = offsetToBin(v, ladderRange);
       if (Math.random() < 0.5) state.bidDepth[bin] += 1;
       else state.askDepth[bin] += 1;
     }
 
-    // Takers: intentan ejecutar de inmediato
     var leftoverBuys = [];
     var leftoverSells = [];
+    var highestBid = -Infinity;
+    var lowestAsk = Infinity;
+
     for (var t = 0; t < numTakers; t++) {
-      var aggression = Math.random() * pct;
+      var aggression = Math.random() * ladderRange;
       if (Math.random() < 0.5) {
-        // comprador
-        var filled = false;
+        var filledBuy = false;
         for (var b1 = 0; b1 < NUM_BINS; b1++) {
-          if ((b1 + 0.5) * (ladderRange / NUM_BINS) > aggression) break;
+          var askOffset = (b1 + 0.5) * (ladderRange / NUM_BINS);
+          if (askOffset > aggression) break;
           if (state.askDepth[b1] >= 1) {
             state.askDepth[b1] -= 1;
-            state.price *= (1 + (b1 + 0.5) * (ladderRange / NUM_BINS));
-            filled = true;
+            state.price *= (1 + askOffset);
+            filledBuy = true;
             break;
           }
         }
-        if (!filled) leftoverBuys.push(state.price * (1 + aggression));
+        if (!filledBuy) {
+          var buyPrice = state.price * (1 + aggression);
+          leftoverBuys.push(buyPrice);
+          if (buyPrice > highestBid) highestBid = buyPrice;
+        }
       } else {
-        // vendedor
-        var filled2 = false;
+        var filledSell = false;
         for (var b2 = 0; b2 < NUM_BINS; b2++) {
-          if ((b2 + 0.5) * (ladderRange / NUM_BINS) > aggression) break;
+          var bidOffset = (b2 + 0.5) * (ladderRange / NUM_BINS);
+          if (bidOffset > aggression) break;
           if (state.bidDepth[b2] >= 1) {
             state.bidDepth[b2] -= 1;
-            state.price *= (1 - (b2 + 0.5) * (ladderRange / NUM_BINS));
-            filled2 = true;
+            state.price *= (1 - bidOffset);
+            filledSell = true;
             break;
           }
         }
-        if (!filled2) leftoverSells.push(state.price * (1 - aggression));
+        if (!filledSell) {
+          var sellPrice = state.price * (1 - aggression);
+          leftoverSells.push(sellPrice);
+          if (sellPrice < lowestAsk) lowestAsk = sellPrice;
+        }
       }
     }
 
-    if (leftoverBuys.length && leftoverSells.length) {
-      var highestBid = Math.max.apply(null, leftoverBuys);
-      var lowestAsk = Math.min.apply(null, leftoverSells);
-      if (highestBid >= lowestAsk) {
-        state.price = (highestBid + lowestAsk) / 2;
-      }
+    if (leftoverBuys.length) state.pendingBuys = leftoverBuys.slice();
+    else state.pendingBuys = [];
+    if (leftoverSells.length) state.pendingSells = leftoverSells.slice();
+    else state.pendingSells = [];
+
+    if (leftoverBuys.length && leftoverSells.length && highestBid >= lowestAsk) {
+      state.price = (highestBid + lowestAsk) / 2;
+    } else if (state.bidDepth.every(function (v) { return v <= 0; }) && state.askDepth.every(function (v) { return v <= 0; })) {
+      var drift = (Math.random() - 0.5) * pct * 1.4;
+      state.price *= 1 + drift;
     }
 
     if (state.price < 1) state.price = 1;
 
-    // Vela en curso
     if (!state.currentCandle) {
       state.currentCandle = { o: state.price, h: state.price, l: state.price, c: state.price, n: 0 };
     }
@@ -502,8 +533,7 @@
 
   // ---------- Render: ladder ----------
   function renderLadder() {
-    var pct = parseFloat(els.variation.value);
-    var ladderRange = (pct / 100) * 1.5;
+    var ladderRange = currentLadderRange();
     var binWidthPct = (ladderRange / NUM_BINS) * 100;
     var maxVol = 1;
     for (var i = 0; i < NUM_BINS; i++) {
@@ -551,6 +581,8 @@
 
   function renderChart() {
     if (!ctx) return;
+    ctx.clearRect(0, 0, cssW, cssH);
+
     var all = state.candles.slice();
     if (state.currentCandle) all.push(state.currentCandle);
     if (all.length < 2) return;
@@ -560,8 +592,6 @@
     var colBid = cssVar('--bid');
     var colAsk = cssVar('--ask');
     var colAccent = cssVar('--accent');
-
-    ctx.clearRect(0, 0, cssW, cssH);
 
     var padLeft = 8, padRight = 62, padTop = 10, padBottom = 10;
     var plotW = cssW - padLeft - padRight;
@@ -579,7 +609,6 @@
 
     function yOf(p) { return padTop + (1 - (p - min) / span) * plotH; }
 
-    // grid
     ctx.strokeStyle = colGrid;
     ctx.lineWidth = 1;
     ctx.font = '11px "JetBrains Mono", monospace';
@@ -595,7 +624,6 @@
       ctx.fillText(gp.toFixed(2), padLeft + plotW + 8, gy + 3);
     }
 
-    // candles
     var n = all.length;
     var slot = plotW / n;
     var bodyW = Math.max(2, Math.min(10, slot * 0.6));
@@ -618,7 +646,6 @@
       ctx.fillRect(cx - bodyW / 2, top, bodyW, h);
     }
 
-    // línea de precio actual
     var py = yOf(state.price);
     ctx.setLineDash([4, 4]);
     ctx.strokeStyle = colAccent;
@@ -641,6 +668,19 @@
     els.statChange.className = 'value mono ' + (change >= 0 ? 'up' : 'down');
     els.statTicks.textContent = state.tick;
   }
+
+  // ---------- Evento de inputs ----------
+  [els.traders, els.variation, els.makers, els.speed].forEach(function (el) {
+    el.addEventListener('input', function () {
+      syncLabels();
+      if (el === els.variation || el === els.makers) {
+        resetSim();
+        renderLadder();
+        renderChart();
+        updateStats();
+      }
+    });
+  });
 
   // ---------- Loop ----------
   var intervalId = null;
@@ -684,6 +724,7 @@
   resizeCanvas();
   renderLadder();
   updateStats();
+  syncLabels();
   play();
 })();
 </script>
