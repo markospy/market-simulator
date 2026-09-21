@@ -61,7 +61,7 @@
   }
   .mono { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
 
-  .app { max-width: 1180px; margin: 0 auto; padding: 22px 18px 40px; }
+  .app { width: 100%; margin: 0; padding: 22px 18px 40px; }
 
   header { margin-bottom: 20px; }
   header h1 {
@@ -83,18 +83,7 @@
     grid-template-columns: 1fr;
     gap: 16px;
   }
-  @media (min-width: 900px) {
-    main {
-      grid-template-columns: 1.55fr 1fr;
-      grid-template-areas:
-        "chart controls"
-        "ladder controls";
-      align-items: start;
-    }
-    .chart-panel { grid-area: chart; }
-    .ladder-panel { grid-area: ladder; }
-    .controls-panel { grid-area: controls; }
-  }
+  main { width: 100%; }
 
   .panel {
     background: var(--panel);
@@ -170,14 +159,6 @@
     color: #1A1300;
   }
 
-  .controls-panel.collapsed .controls-content {
-    display: none;
-  }
-
-  .controls-panel.collapsed .toggle-btn {
-    transform: rotate(-90deg);
-  }
-
   .controls-panel {
     display: none;
   }
@@ -199,8 +180,12 @@
     right: 16px;
     bottom: 16px;
     z-index: 56;
-    width: auto;
-    padding: 10px 14px;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    line-height: 1;
     box-shadow: 0 8px 20px rgba(18, 24, 31, 0.18);
   }
 
@@ -220,10 +205,17 @@
     flex: 1;
     min-height: 0;
     height: 100%;
+    width: 100%;
   }
 
   .chart-panel.fullscreen .chart-header {
     margin-bottom: 10px;
+  }
+
+  .chart-panel.fullscreen .parameters-fab {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
   }
 
   .ladder-panel {
@@ -493,6 +485,7 @@
         </div>
         <div class="panel-actions">
           <button class="ghost-btn" id="fullscreenBtn">Pantalla completa</button>
+          <button type="button" class="primary parameters-fab" id="parametersBtn" aria-label="Abrir parámetros" aria-expanded="false" title="Abrir parámetros">⚙</button>
         </div>
       </div>
       <canvas id="priceChart"></canvas>
@@ -512,9 +505,6 @@
     <section class="panel controls-panel" id="controlsPanel">
       <div class="panel-header">
         <p class="panel-title">Parámetros de la simulación</p>
-        <div class="panel-actions">
-          <button class="toggle-btn" id="collapseBtn" aria-label="Contraer o expandir panel">▾</button>
-        </div>
       </div>
 
       <div class="controls-content">
@@ -545,11 +535,11 @@
 
         <div class="field">
           <div class="field-head">
-            <label for="positionSize">Tamaño de operación</label>
-            <span class="fval mono" id="positionSizeVal">100%</span>
+            <label for="riskPercent">Riesgo por operación</label>
+            <span class="fval mono" id="riskPercentVal">1%</span>
           </div>
-          <input type="range" id="positionSize" min="10" max="500" step="10" value="100">
-          <p class="hint">Multiplica el efecto de la variación sobre el capital de la operación.</p>
+          <input type="range" id="riskPercent" min="1" max="10" step="1" value="1">
+          <p class="hint">Porcentaje máximo del capital expuesto a la pérdida de la operación.</p>
         </div>
 
         <div class="field">
@@ -575,8 +565,6 @@
     </section>
   </main>
 
-  <button type="button" class="primary parameters-fab" id="parametersBtn" aria-expanded="false">Parámetros</button>
-
   <footer>
     Réplica conceptual, hecha con canvas y JavaScript, del experimento de simulación de mercado descrito en el video de Krafer sobre patrones de precio. No usa GPU ni compute shaders: la lógica (agentes aleatorios, libro de órdenes, muros de liquidez) es la misma, adaptada para correr en el navegador.
   </footer>
@@ -590,6 +578,7 @@
   var NUM_BINS = 8;
   var DECAY = 0.965;
   var BOOK_SMOOTHING = 0.12;
+  var PRICE_VOLATILITY = 2.4;
 
   var state = {
     price: 100,
@@ -607,6 +596,7 @@
     pendingSells: [],
     running: true,
     position: null,
+    equity: 100,
     bookVisible: false
   };
 
@@ -620,8 +610,8 @@
     makersHint: document.getElementById('makersHint'),
     speed: document.getElementById('speed'),
     speedVal: document.getElementById('speedVal'),
-    positionSize: document.getElementById('positionSize'),
-    positionSizeVal: document.getElementById('positionSizeVal'),
+    riskPercent: document.getElementById('riskPercent'),
+    riskPercentVal: document.getElementById('riskPercentVal'),
     playBtn: document.getElementById('playBtn'),
     resetBtn: document.getElementById('resetBtn'),
     statPrice: document.getElementById('statPrice'),
@@ -631,7 +621,6 @@
     ladder: document.getElementById('ladder'),
     ladderPanel: document.getElementById('ladderPanel'),
     canvas: document.getElementById('priceChart'),
-    collapseBtn: document.getElementById('collapseBtn'),
     controlsPanel: document.getElementById('controlsPanel'),
     parametersBtn: document.getElementById('parametersBtn'),
     toggleBookBtn: document.getElementById('toggleBookBtn'),
@@ -654,7 +643,7 @@
       ? 'Sin órdenes en espera: cada agente actúa como comprador o vendedor inmediato y el precio se mueve con libertad.'
       : 'Las órdenes se acumulan en el libro y forman muros de liquidez que frenan el movimiento del precio.';
     els.speedVal.textContent = els.speed.value;
-    els.positionSizeVal.textContent = els.positionSize.value + '%';
+    els.riskPercentVal.textContent = els.riskPercent.value + '%';
   }
 
   function currentLadderRange() {
@@ -674,6 +663,7 @@
     state.pendingBuys = [];
     state.pendingSells = [];
     state.position = null;
+    state.equity = 100;
     syncTradeButtons();
   }
 
@@ -704,14 +694,12 @@
     els.toggleBookBtn.textContent = state.bookVisible ? 'Ocultar libro' : 'Mostrar libro';
   }
 
-  function toggleControls() {
-    els.controlsPanel.classList.toggle('collapsed');
-    els.collapseBtn.textContent = els.controlsPanel.classList.contains('collapsed') ? '▸' : '▾';
-  }
-
   function toggleParameters() {
     var isOpen = els.controlsPanel.classList.toggle('open');
     els.parametersBtn.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen && document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen();
+    }
   }
 
   function toggleFullscreen() {
@@ -721,12 +709,14 @@
       }
       els.chartPanel.classList.add('fullscreen');
       els.fullscreenBtn.textContent = 'Salir fullscreen';
+      requestAnimationFrame(resizeAndRenderCanvas);
     } else {
       if (document.exitFullscreen) {
         document.exitFullscreen();
       }
       els.chartPanel.classList.remove('fullscreen');
       els.fullscreenBtn.textContent = 'Pantalla completa';
+      requestAnimationFrame(resizeAndRenderCanvas);
     }
   }
 
@@ -736,7 +726,9 @@
       side: side,
       entry: state.price,
       openedAt: state.tick,
-      size: parseFloat(els.positionSize.value)
+      risk: parseFloat(els.riskPercent.value),
+      stopDistance: Math.max(currentLadderRange() * 100, 0.1),
+      entryEquity: state.equity
     };
     syncTradeButtons();
     renderChart();
@@ -749,6 +741,7 @@
       event.stopPropagation();
     }
     if (!state.position) return;
+    state.equity = calculateEquity();
     state.position = null;
     syncTradeButtons();
     renderChart();
@@ -805,7 +798,7 @@
           if (askOffset > aggression) break;
           if (state.askDepth[b1] >= 1) {
             state.askDepth[b1] -= 1;
-            state.price *= (1 + askOffset);
+            state.price *= (1 + askOffset * PRICE_VOLATILITY);
             filledBuy = true;
             break;
           }
@@ -822,7 +815,7 @@
           if (bidOffset > aggression) break;
           if (state.bidDepth[b2] >= 1) {
             state.bidDepth[b2] -= 1;
-            state.price *= (1 - bidOffset);
+            state.price *= (1 - bidOffset * PRICE_VOLATILITY);
             filledSell = true;
             break;
           }
@@ -843,9 +836,12 @@
     if (leftoverBuys.length && leftoverSells.length && highestBid >= lowestAsk) {
       state.price = (highestBid + lowestAsk) / 2;
     } else if (state.bidDepth.every(function (v) { return v <= 0; }) && state.askDepth.every(function (v) { return v <= 0; })) {
-      var drift = (Math.random() - 0.5) * pct * 1.4;
+      var drift = (Math.random() - 0.5) * pct * 1.4 * PRICE_VOLATILITY;
       state.price *= 1 + drift;
     }
+
+    var marketShock = (Math.random() - 0.5) * pct * 0.7;
+    state.price *= 1 + marketShock;
 
     if (state.price < 1) state.price = 1;
 
@@ -919,7 +915,13 @@
     els.canvas.width = Math.round(cssW * dpr);
     els.canvas.height = Math.round(cssH * dpr);
     ctx = els.canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function resizeAndRenderCanvas() {
+    resizeCanvas();
+    renderChart();
   }
 
   function cssVar(name) {
@@ -1030,19 +1032,20 @@
     els.statChange.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
     els.statChange.className = 'value mono ' + (change >= 0 ? 'up' : 'down');
     els.statTicks.textContent = state.tick;
-    if (!state.position) {
-      els.statPnl.textContent = '--';
-      els.statPnl.className = 'value mono neutral';
-      return;
-    }
-    var direction = state.position.side === 'buy' ? 1 : -1;
-    var returnPct = ((state.price - state.position.entry) / state.position.entry) * 100 * direction;
-    var pnl = 100 + returnPct * (state.position.size / 100);
+    var pnl = state.position ? calculateEquity() : state.equity;
     els.statPnl.textContent = pnl.toFixed(2) + '%';
     els.statPnl.className = 'value mono ' + (pnl >= 100 ? 'up' : 'down');
   }
 
-  [els.traders, els.variation, els.makers, els.speed, els.positionSize].forEach(function (el) {
+  function calculateEquity() {
+    if (!state.position) return state.equity;
+    var direction = state.position.side === 'buy' ? 1 : -1;
+    var returnPct = ((state.price - state.position.entry) / state.position.entry) * 100 * direction;
+    var riskMultiple = returnPct / state.position.stopDistance;
+    return state.position.entryEquity + riskMultiple * state.position.risk;
+  }
+
+  [els.traders, els.variation, els.makers, els.speed, els.riskPercent].forEach(function (el) {
     el.addEventListener('input', function () {
       syncLabels();
       if (el === els.variation || el === els.makers) {
@@ -1087,7 +1090,6 @@
     updateStats();
   });
 
-  els.collapseBtn.addEventListener('click', toggleControls);
   els.parametersBtn.addEventListener('click', toggleParameters);
   els.toggleBookBtn.addEventListener('click', toggleBook);
   els.themeToggle.addEventListener('change', function () {
@@ -1102,12 +1104,12 @@
     if (!document.fullscreenElement) {
       els.chartPanel.classList.remove('fullscreen');
       els.fullscreenBtn.textContent = 'Pantalla completa';
+      requestAnimationFrame(resizeAndRenderCanvas);
     }
   });
 
   window.addEventListener('resize', function () {
-    resizeCanvas();
-    renderChart();
+    requestAnimationFrame(resizeAndRenderCanvas);
   });
 
   applyTheme('light');
