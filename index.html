@@ -103,11 +103,203 @@
     padding: 16px;
   }
 
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
   .panel-title {
     font-size: 0.78rem;
     color: var(--text-muted);
-    margin: 0 0 12px;
+    margin: 0;
     font-weight: 500;
+  }
+
+  .panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ghost-btn,
+  .toggle-btn,
+  .trade-btn {
+    font-family: inherit;
+    font-size: 0.76rem;
+    font-weight: 600;
+    border-radius: 7px;
+    border: 1px solid var(--panel-border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    padding: 7px 10px;
+  }
+
+  .ghost-btn:focus-visible,
+  .toggle-btn:focus-visible,
+  .trade-btn:focus-visible,
+  .theme-toggle input:focus-visible + .theme-switch {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .toggle-btn { min-width: 38px; }
+
+  .trade-btn {
+    flex: 1;
+    padding: 10px 12px;
+  }
+
+  .trade-btn.primary {
+    background: var(--bid);
+    border-color: var(--bid);
+    color: white;
+  }
+
+  .trade-btn.primary.sell {
+    background: var(--ask);
+    border-color: var(--ask);
+  }
+
+  .trade-btn.danger {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #1A1300;
+  }
+
+  .controls-panel.collapsed .controls-content {
+    display: none;
+  }
+
+  .controls-panel.collapsed .toggle-btn {
+    transform: rotate(-90deg);
+  }
+
+  .controls-panel {
+    display: none;
+  }
+
+  .controls-panel.open {
+    display: block;
+    position: fixed;
+    right: 16px;
+    bottom: 68px;
+    z-index: 55;
+    width: min(360px, calc(100vw - 32px));
+    max-height: calc(100vh - 100px);
+    overflow: auto;
+    box-shadow: 0 14px 36px rgba(18, 24, 31, 0.2);
+  }
+
+  .parameters-fab {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 56;
+    width: auto;
+    padding: 10px 14px;
+    box-shadow: 0 8px 20px rgba(18, 24, 31, 0.18);
+  }
+
+  .chart-panel.fullscreen {
+    position: fixed;
+    inset: 12px;
+    z-index: 50;
+    max-width: none;
+    height: calc(100vh - 24px);
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    overflow: hidden;
+  }
+
+  .chart-panel.fullscreen canvas#priceChart {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .chart-panel.fullscreen .chart-header {
+    margin-bottom: 10px;
+  }
+
+  .ladder-panel {
+    display: none;
+  }
+
+  .ladder-panel.visible {
+    display: block;
+  }
+
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .theme-toggle.top-theme {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    z-index: 60;
+    padding: 5px 8px;
+    border-radius: 7px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+  }
+
+  .theme-toggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .theme-switch {
+    position: relative;
+    display: inline-flex;
+    width: 42px;
+    height: 24px;
+    background: var(--track);
+    border-radius: 999px;
+    border: 1px solid var(--panel-border);
+    transition: background 0.2s ease;
+    cursor: pointer;
+  }
+
+  .theme-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    transition: transform 0.2s ease;
+  }
+
+  .theme-toggle input:checked + .theme-switch::after {
+    transform: translateX(18px);
+  }
+
+  .controls-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+  }
+
+  .trade-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 18px;
   }
 
   .stat-row {
@@ -121,6 +313,7 @@
   .stat .value { font-size: 1.15rem; font-weight: 500; }
   .stat .value.up { color: var(--bid); }
   .stat .value.down { color: var(--ask); }
+  .stat .value.neutral { color: var(--text-muted); }
 
   canvas#priceChart {
     width: 100%;
@@ -132,7 +325,7 @@
   .ladder-panel .rows { display: flex; flex-direction: column; gap: 1px; }
   .ladder-row {
     display: grid;
-    grid-template-columns: 56px 1fr 56px;
+    grid-template-columns: 64px minmax(0, 1fr) 92px;
     align-items: center;
     gap: 8px;
     height: 17px;
@@ -156,7 +349,11 @@
   }
   .ladder-row.ask .bar { background: var(--ask); right: 50%; }
   .ladder-row.bid .bar { background: var(--bid); left: 50%; }
-  .ladder-row .vol { font-size: 0.68rem; color: var(--text-muted); }
+  .ladder-row .vol {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
   .ladder-mid {
     height: 26px;
     display: flex;
@@ -264,76 +461,121 @@
 <div class="app">
 
   <header>
+    <label class="theme-toggle top-theme" aria-label="Cambiar tema">
+      <input type="checkbox" id="themeToggle">
+      <span class="theme-switch"></span>
+      <span>Tema</span>
+    </label>
     <h1>Simulador de mercado aleatorio</h1>
     <p>Cientos de agentes proponen un precio al azar, dentro de un rango de variación, y deciden comprar o vender sin ninguna estrategia. Cuando no queda ninguna orden esperando en el libro, el precio fluye libremente y aparecen figuras parecidas a las del análisis técnico. Al subir el porcentaje de órdenes persistentes, esas órdenes se acumulan como muros de liquidez y el precio queda atrapado entre ellos.</p>
   </header>
 
   <main>
     <section class="panel chart-panel">
-      <div class="stat-row">
-        <div class="stat">
-          <span class="label">Precio</span>
-          <span class="value mono" id="statPrice">100.00</span>
+      <div class="panel-header chart-header">
+        <div class="stat-row" style="margin-bottom:0;">
+          <div class="stat">
+            <span class="label">Precio</span>
+            <span class="value mono" id="statPrice">100.00</span>
+          </div>
+          <div class="stat">
+            <span class="label">Variación</span>
+            <span class="value mono" id="statChange">+0.00%</span>
+          </div>
+          <div class="stat">
+            <span class="label">Ticks</span>
+            <span class="value mono" id="statTicks">0</span>
+          </div>
+          <div class="stat">
+            <span class="label">PnL</span>
+            <span class="value mono neutral" id="statPnl">--</span>
+          </div>
         </div>
-        <div class="stat">
-          <span class="label">Variación</span>
-          <span class="value mono" id="statChange">+0.00%</span>
-        </div>
-        <div class="stat">
-          <span class="label">Ticks</span>
-          <span class="value mono" id="statTicks">0</span>
+        <div class="panel-actions">
+          <button class="ghost-btn" id="fullscreenBtn">Pantalla completa</button>
         </div>
       </div>
       <canvas id="priceChart"></canvas>
+
+      <div class="trade-actions">
+        <button type="button" class="trade-btn primary" id="buyBtn">Buy</button>
+        <button type="button" class="trade-btn primary sell" id="sellBtn">Sell</button>
+        <button type="button" class="trade-btn danger" id="closeBtn" hidden>Close</button>
+      </div>
     </section>
 
-    <section class="panel ladder-panel">
+    <section class="panel ladder-panel" id="ladderPanel">
       <p class="panel-title">Libro de órdenes (órdenes en espera, relativo al precio)</p>
       <div id="ladder"></div>
     </section>
 
-    <section class="panel controls-panel">
-      <p class="panel-title">Parámetros de la simulación</p>
-
-      <div class="field">
-        <div class="field-head">
-          <label for="traders">Agentes por tick</label>
-          <span class="fval mono" id="tradersVal">4000</span>
+    <section class="panel controls-panel" id="controlsPanel">
+      <div class="panel-header">
+        <p class="panel-title">Parámetros de la simulación</p>
+        <div class="panel-actions">
+          <button class="toggle-btn" id="collapseBtn" aria-label="Contraer o expandir panel">▾</button>
         </div>
-        <input type="range" id="traders" min="200" max="5000" step="200" value="4000">
       </div>
 
-      <div class="field">
-        <div class="field-head">
-          <label for="variation">Variación de precio (±%)</label>
-          <span class="fval mono" id="variationVal">1.0%</span>
+      <div class="controls-content">
+        <div class="field">
+          <div class="field-head">
+            <label for="traders">Agentes por tick</label>
+            <span class="fval mono" id="tradersVal">4000</span>
+          </div>
+          <input type="range" id="traders" min="200" max="5000" step="200" value="4000">
         </div>
-        <input type="range" id="variation" min="0.1" max="5" step="0.1" value="1.0">
-      </div>
 
-      <div class="field">
-        <div class="field-head">
-          <label for="makers">Órdenes persistentes (market makers)</label>
-          <span class="fval mono" id="makersVal">0%</span>
+        <div class="field">
+          <div class="field-head">
+            <label for="variation">Variación de precio (±%)</label>
+            <span class="fval mono" id="variationVal">1.0%</span>
+          </div>
+          <input type="range" id="variation" min="0.1" max="5" step="0.1" value="1.0">
         </div>
-        <input type="range" id="makers" min="0" max="80" step="1" value="0">
-        <p class="hint" id="makersHint">Sin órdenes en espera: cada agente actúa como comprador o vendedor inmediato y el precio se mueve con libertad.</p>
-      </div>
 
-      <div class="field">
-        <div class="field-head">
-          <label for="speed">Velocidad</label>
-          <span class="fval mono" id="speedVal">4</span>
+        <div class="field">
+          <div class="field-head">
+            <label for="makers">Órdenes persistentes (market makers)</label>
+            <span class="fval mono" id="makersVal">0%</span>
+          </div>
+          <input type="range" id="makers" min="0" max="80" step="1" value="0">
+          <p class="hint" id="makersHint">Sin órdenes en espera: cada agente actúa como comprador o vendedor inmediato y el precio se mueve con libertad.</p>
         </div>
-        <input type="range" id="speed" min="1" max="10" step="1" value="4">
-      </div>
 
-      <div class="btn-row">
-        <button class="primary" id="playBtn">Pausar</button>
-        <button id="resetBtn">Reiniciar</button>
+        <div class="field">
+          <div class="field-head">
+            <label for="positionSize">Tamaño de operación</label>
+            <span class="fval mono" id="positionSizeVal">100%</span>
+          </div>
+          <input type="range" id="positionSize" min="10" max="500" step="10" value="100">
+          <p class="hint">Multiplica el efecto de la variación sobre el capital de la operación.</p>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="speed">Velocidad</label>
+            <span class="fval mono" id="speedVal">4</span>
+          </div>
+          <input type="range" id="speed" min="1" max="10" step="1" value="4">
+        </div>
+
+        <div class="controls-row">
+          <div class="btn-row" style="margin-top:0; flex:1;">
+            <button class="primary" id="playBtn">Pausar</button>
+            <button id="resetBtn">Reiniciar</button>
+          </div>
+        </div>
+
+        <div class="controls-row">
+          <button class="ghost-btn" id="toggleBookBtn">Mostrar libro</button>
+
+        </div>
       </div>
     </section>
   </main>
+
+  <button type="button" class="primary parameters-fab" id="parametersBtn" aria-expanded="false">Parámetros</button>
 
   <footer>
     Réplica conceptual, hecha con canvas y JavaScript, del experimento de simulación de mercado descrito en el video de Krafer sobre patrones de precio. No usa GPU ni compute shaders: la lógica (agentes aleatorios, libro de órdenes, muros de liquidez) es la misma, adaptada para correr en el navegador.
@@ -347,8 +589,8 @@
 
   var NUM_BINS = 8;
   var DECAY = 0.965;
+  var BOOK_SMOOTHING = 0.12;
 
-  // ---------- Estado ----------
   var state = {
     price: 100,
     tick: 0,
@@ -356,12 +598,16 @@
     candles: [],
     currentCandle: null,
     ticksPerCandle: 20,
-    maxCandles: 70,
+    maxCandles: 180,
     bidDepth: new Float32Array(NUM_BINS),
     askDepth: new Float32Array(NUM_BINS),
+    displayedBidDepth: new Float32Array(NUM_BINS),
+    displayedAskDepth: new Float32Array(NUM_BINS),
     pendingBuys: [],
     pendingSells: [],
-    running: true
+    running: true,
+    position: null,
+    bookVisible: false
   };
 
   var els = {
@@ -374,13 +620,27 @@
     makersHint: document.getElementById('makersHint'),
     speed: document.getElementById('speed'),
     speedVal: document.getElementById('speedVal'),
+    positionSize: document.getElementById('positionSize'),
+    positionSizeVal: document.getElementById('positionSizeVal'),
     playBtn: document.getElementById('playBtn'),
     resetBtn: document.getElementById('resetBtn'),
     statPrice: document.getElementById('statPrice'),
     statChange: document.getElementById('statChange'),
     statTicks: document.getElementById('statTicks'),
+    statPnl: document.getElementById('statPnl'),
     ladder: document.getElementById('ladder'),
-    canvas: document.getElementById('priceChart')
+    ladderPanel: document.getElementById('ladderPanel'),
+    canvas: document.getElementById('priceChart'),
+    collapseBtn: document.getElementById('collapseBtn'),
+    controlsPanel: document.getElementById('controlsPanel'),
+    parametersBtn: document.getElementById('parametersBtn'),
+    toggleBookBtn: document.getElementById('toggleBookBtn'),
+    themeToggle: document.getElementById('themeToggle'),
+    fullscreenBtn: document.getElementById('fullscreenBtn'),
+    chartPanel: document.querySelector('.chart-panel'),
+    buyBtn: document.getElementById('buyBtn'),
+    sellBtn: document.getElementById('sellBtn'),
+    closeBtn: document.getElementById('closeBtn')
   };
 
   function fmt(n, d) { return n.toFixed(d === undefined ? 2 : d); }
@@ -394,6 +654,7 @@
       ? 'Sin órdenes en espera: cada agente actúa como comprador o vendedor inmediato y el precio se mueve con libertad.'
       : 'Las órdenes se acumulan en el libro y forman muros de liquidez que frenan el movimiento del precio.';
     els.speedVal.textContent = els.speed.value;
+    els.positionSizeVal.textContent = els.positionSize.value + '%';
   }
 
   function currentLadderRange() {
@@ -408,8 +669,12 @@
     state.currentCandle = null;
     state.bidDepth = new Float32Array(NUM_BINS);
     state.askDepth = new Float32Array(NUM_BINS);
+    state.displayedBidDepth = new Float32Array(NUM_BINS);
+    state.displayedAskDepth = new Float32Array(NUM_BINS);
     state.pendingBuys = [];
     state.pendingSells = [];
+    state.position = null;
+    syncTradeButtons();
   }
 
   function offsetToBin(offsetAbs, ladderRange) {
@@ -418,6 +683,76 @@
     if (b < 0) b = 0;
     if (b > NUM_BINS - 1) b = NUM_BINS - 1;
     return b;
+  }
+
+  function syncTradeButtons() {
+    var hasPosition = !!state.position;
+    els.buyBtn.hidden = hasPosition;
+    els.sellBtn.hidden = hasPosition;
+    els.closeBtn.hidden = !hasPosition;
+  }
+
+  function applyTheme(theme) {
+    var isDark = theme === 'dark';
+    document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+    els.themeToggle.checked = isDark;
+  }
+
+  function toggleBook() {
+    state.bookVisible = !state.bookVisible;
+    els.ladderPanel.classList.toggle('visible', state.bookVisible);
+    els.toggleBookBtn.textContent = state.bookVisible ? 'Ocultar libro' : 'Mostrar libro';
+  }
+
+  function toggleControls() {
+    els.controlsPanel.classList.toggle('collapsed');
+    els.collapseBtn.textContent = els.controlsPanel.classList.contains('collapsed') ? '▸' : '▾';
+  }
+
+  function toggleParameters() {
+    var isOpen = els.controlsPanel.classList.toggle('open');
+    els.parametersBtn.setAttribute('aria-expanded', String(isOpen));
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      if (els.chartPanel.requestFullscreen) {
+        els.chartPanel.requestFullscreen();
+      }
+      els.chartPanel.classList.add('fullscreen');
+      els.fullscreenBtn.textContent = 'Salir fullscreen';
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+      els.chartPanel.classList.remove('fullscreen');
+      els.fullscreenBtn.textContent = 'Pantalla completa';
+    }
+  }
+
+  function openPosition(side) {
+    if (state.position) return;
+    state.position = {
+      side: side,
+      entry: state.price,
+      openedAt: state.tick,
+      size: parseFloat(els.positionSize.value)
+    };
+    syncTradeButtons();
+    renderChart();
+    updateStats();
+  }
+
+  function closePosition(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (!state.position) return;
+    state.position = null;
+    syncTradeButtons();
+    renderChart();
+    updateStats();
   }
 
   function step() {
@@ -531,38 +866,50 @@
     state.tick++;
   }
 
-  // ---------- Render: ladder ----------
   function renderLadder() {
     var ladderRange = currentLadderRange();
     var binWidthPct = (ladderRange / NUM_BINS) * 100;
+    var bidVolumes = new Float32Array(state.bidDepth);
+    var askVolumes = new Float32Array(state.askDepth);
+    for (var pendingBuy = 0; pendingBuy < state.pendingBuys.length; pendingBuy++) {
+      var buyOffset = Math.abs(state.pendingBuys[pendingBuy] - state.price) / state.price;
+      bidVolumes[offsetToBin(buyOffset, ladderRange)] += 1;
+    }
+    for (var pendingSell = 0; pendingSell < state.pendingSells.length; pendingSell++) {
+      var sellOffset = Math.abs(state.pendingSells[pendingSell] - state.price) / state.price;
+      askVolumes[offsetToBin(sellOffset, ladderRange)] += 1;
+    }
     var maxVol = 1;
+    for (var smooth = 0; smooth < NUM_BINS; smooth++) {
+      state.displayedBidDepth[smooth] += (bidVolumes[smooth] - state.displayedBidDepth[smooth]) * BOOK_SMOOTHING;
+      state.displayedAskDepth[smooth] += (askVolumes[smooth] - state.displayedAskDepth[smooth]) * BOOK_SMOOTHING;
+    }
     for (var i = 0; i < NUM_BINS; i++) {
-      maxVol = Math.max(maxVol, state.bidDepth[i], state.askDepth[i]);
+      maxVol = Math.max(maxVol, state.displayedBidDepth[i], state.displayedAskDepth[i]);
     }
 
     var html = '<div class="rows">';
     for (var a = NUM_BINS - 1; a >= 0; a--) {
       var offAsk = ((a + 1) * binWidthPct).toFixed(2);
-      var volAsk = state.askDepth[a];
+      var volAsk = state.displayedAskDepth[a];
       var wAsk = Math.min(100, (volAsk / maxVol) * 100);
       html += '<div class="ladder-row ask"><span class="offset mono">+' + offAsk + '%</span>' +
         '<div class="bar-track"><div class="bar" style="width:' + wAsk + '%"></div></div>' +
-        '<span class="vol mono">' + Math.round(volAsk) + '</span></div>';
+        '<span class="vol mono">Vol ' + Math.round(volAsk) + '</span></div>';
     }
     html += '<div class="ladder-mid mono">' + fmt(state.price) + '</div>';
     for (var bI = 0; bI < NUM_BINS; bI++) {
       var offBid = ((bI + 1) * binWidthPct).toFixed(2);
-      var volBid = state.bidDepth[bI];
+      var volBid = state.displayedBidDepth[bI];
       var wBid = Math.min(100, (volBid / maxVol) * 100);
-      html += '<div class="ladder-row bid"><span class="offset mono">&nbsp;</span>' +
+      html += '<div class="ladder-row bid"><span class="offset mono">-' + offBid + '%</span>' +
         '<div class="bar-track"><div class="bar" style="width:' + wBid + '%"></div></div>' +
-        '<span class="vol mono">-' + offBid + '% (' + Math.round(volBid) + ')</span></div>';
+        '<span class="vol mono">Vol ' + Math.round(volBid) + '</span></div>';
     }
     html += '</div>';
     els.ladder.innerHTML = html;
   }
 
-  // ---------- Render: chart ----------
   var ctx = null, cssW = 0, cssH = 0;
   function resizeCanvas() {
     var rect = els.canvas.getBoundingClientRect();
@@ -646,6 +993,22 @@
       ctx.fillRect(cx - bodyW / 2, top, bodyW, h);
     }
 
+    if (state.position) {
+      var entryY = yOf(state.position.entry);
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = state.position.side === 'buy' ? colBid : colAsk;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, entryY);
+      ctx.lineTo(padLeft + plotW, entryY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = state.position.side === 'buy' ? colBid : colAsk;
+      ctx.fillRect(padLeft + plotW + 2, entryY - 8, 52, 16);
+      ctx.fillStyle = '#1A1300';
+      ctx.font = 'bold 11px "JetBrains Mono", monospace';
+      ctx.fillText(state.position.side.toUpperCase(), padLeft + plotW + 5, entryY + 3);
+    }
+
     var py = yOf(state.price);
     ctx.setLineDash([4, 4]);
     ctx.strokeStyle = colAccent;
@@ -667,10 +1030,19 @@
     els.statChange.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
     els.statChange.className = 'value mono ' + (change >= 0 ? 'up' : 'down');
     els.statTicks.textContent = state.tick;
+    if (!state.position) {
+      els.statPnl.textContent = '--';
+      els.statPnl.className = 'value mono neutral';
+      return;
+    }
+    var direction = state.position.side === 'buy' ? 1 : -1;
+    var returnPct = ((state.price - state.position.entry) / state.position.entry) * 100 * direction;
+    var pnl = 100 + returnPct * (state.position.size / 100);
+    els.statPnl.textContent = pnl.toFixed(2) + '%';
+    els.statPnl.className = 'value mono ' + (pnl >= 100 ? 'up' : 'down');
   }
 
-  // ---------- Evento de inputs ----------
-  [els.traders, els.variation, els.makers, els.speed].forEach(function (el) {
+  [els.traders, els.variation, els.makers, els.speed, els.positionSize].forEach(function (el) {
     el.addEventListener('input', function () {
       syncLabels();
       if (el === els.variation || el === els.makers) {
@@ -682,7 +1054,6 @@
     });
   });
 
-  // ---------- Loop ----------
   var intervalId = null;
   function frameLoop() {
     var speed = parseInt(els.speed.value, 10);
@@ -694,7 +1065,7 @@
 
   function play() {
     if (intervalId) return;
-    intervalId = setInterval(frameLoop, 70);
+    intervalId = setInterval(frameLoop, 140);
     state.running = true;
     els.playBtn.textContent = 'Pausar';
   }
@@ -708,6 +1079,7 @@
   els.playBtn.addEventListener('click', function () {
     if (state.running) pause(); else play();
   });
+
   els.resetBtn.addEventListener('click', function () {
     resetSim();
     renderLadder();
@@ -715,16 +1087,35 @@
     updateStats();
   });
 
+  els.collapseBtn.addEventListener('click', toggleControls);
+  els.parametersBtn.addEventListener('click', toggleParameters);
+  els.toggleBookBtn.addEventListener('click', toggleBook);
+  els.themeToggle.addEventListener('change', function () {
+    applyTheme(els.themeToggle.checked ? 'dark' : 'light');
+  });
+  els.fullscreenBtn.addEventListener('click', toggleFullscreen);
+  els.buyBtn.addEventListener('click', function () { openPosition('buy'); });
+  els.sellBtn.addEventListener('click', function () { openPosition('sell'); });
+  els.closeBtn.addEventListener('click', function (event) { closePosition(event); });
+
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement) {
+      els.chartPanel.classList.remove('fullscreen');
+      els.fullscreenBtn.textContent = 'Pantalla completa';
+    }
+  });
+
   window.addEventListener('resize', function () {
     resizeCanvas();
     renderChart();
   });
 
-  // ---------- Inicio ----------
+  applyTheme('light');
   resizeCanvas();
   renderLadder();
   updateStats();
   syncLabels();
+  syncTradeButtons();
   play();
 })();
 </script>
